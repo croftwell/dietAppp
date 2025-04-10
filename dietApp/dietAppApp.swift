@@ -9,9 +9,21 @@ import SwiftUI
 
 @main
 struct dietAppApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    
+    @StateObject private var authViewModel = AuthenticationViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if authViewModel.isAuthenticated {
+                ContentView()
+                    .environmentObject(authViewModel)
+            } else {
+                NavigationStack {
+                    OnboardingView()
+                }
+                .environmentObject(authViewModel)
+            }
         }
     }
 }

@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		41E6E75B2DA7C9FB00945C95 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E75A2DA7C9FA00945C95 /* FirebaseAuth */; };
+		41E6E75D2DA7C9FB00945C95 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E75C2DA7C9FB00945C95 /* FirebaseCore */; };
+		41E6E75F2DA7C9FB00945C95 /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E75E2DA7C9FB00945C95 /* FirebaseDatabase */; };
+		41E6E7612DA7C9FB00945C95 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E7602DA7C9FB00945C95 /* FirebaseFirestore */; };
+		41E6E7632DA7C9FB00945C95 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E7622DA7C9FB00945C95 /* FirebaseStorage */; };
+		41E6E7662DA7CA1000945C95 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E7652DA7CA1000945C95 /* GoogleSignIn */; };
+		41E6E7682DA7CA1000945C95 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 41E6E7672DA7CA1000945C95 /* GoogleSignInSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		41E6E7242DA7C8C300945C95 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +62,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				41E6E75F2DA7C9FB00945C95 /* FirebaseDatabase in Frameworks */,
+				41E6E7612DA7C9FB00945C95 /* FirebaseFirestore in Frameworks */,
+				41E6E7682DA7CA1000945C95 /* GoogleSignInSwift in Frameworks */,
+				41E6E75D2DA7C9FB00945C95 /* FirebaseCore in Frameworks */,
+				41E6E7632DA7C9FB00945C95 /* FirebaseStorage in Frameworks */,
+				41E6E75B2DA7C9FB00945C95 /* FirebaseAuth in Frameworks */,
+				41E6E7662DA7CA1000945C95 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +129,13 @@
 			);
 			name = dietApp;
 			packageProductDependencies = (
+				41E6E75A2DA7C9FA00945C95 /* FirebaseAuth */,
+				41E6E75C2DA7C9FB00945C95 /* FirebaseCore */,
+				41E6E75E2DA7C9FB00945C95 /* FirebaseDatabase */,
+				41E6E7602DA7C9FB00945C95 /* FirebaseFirestore */,
+				41E6E7622DA7C9FB00945C95 /* FirebaseStorage */,
+				41E6E7652DA7CA1000945C95 /* GoogleSignIn */,
+				41E6E7672DA7CA1000945C95 /* GoogleSignInSwift */,
 			);
 			productName = dietApp;
 			productReference = 41E6E7132DA7C8C100945C95 /* dietApp.app */;
@@ -195,6 +219,10 @@
 			);
 			mainGroup = 41E6E70A2DA7C8C100945C95;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				41E6E7642DA7CA1000945C95 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 41E6E7142DA7C8C100945C95 /* Products */;
 			projectDirPath = "";
@@ -396,6 +424,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"dietApp/Preview Content\"";
+				DEVELOPMENT_TEAM = G2FHPN9ZR2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -424,6 +453,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"dietApp/Preview Content\"";
+				DEVELOPMENT_TEAM = G2FHPN9ZR2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -552,6 +582,63 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.11.0;
+			};
+		};
+		41E6E7642DA7CA1000945C95 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		41E6E75A2DA7C9FA00945C95 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		41E6E75C2DA7C9FB00945C95 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		41E6E75E2DA7C9FB00945C95 /* FirebaseDatabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseDatabase;
+		};
+		41E6E7602DA7C9FB00945C95 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		41E6E7622DA7C9FB00945C95 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7592DA7C9FA00945C95 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+		41E6E7652DA7CA1000945C95 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7642DA7CA1000945C95 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		41E6E7672DA7CA1000945C95 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 41E6E7642DA7CA1000945C95 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 41E6E70B2DA7C8C100945C95 /* Project object */;
 }
