@@ -14,15 +14,20 @@ struct dietAppApp: App {
     @StateObject private var authViewModel = AuthenticationViewModel()
     
     var body: some Scene {
+        let _ = print("dietAppApp body re-evaluated. isAuthenticated: \(authViewModel.isAuthenticated)")
         WindowGroup {
             if authViewModel.isAuthenticated {
+                let _ = print("Showing ContentView")
                 ContentView()
                     .environmentObject(authViewModel)
+                    .id("ContentView")
             } else {
+                let _ = print("Showing Onboarding Stack")
                 NavigationStack {
                     OnboardingView()
                 }
                 .environmentObject(authViewModel)
+                .id("OnboardingStack")
             }
         }
     }
