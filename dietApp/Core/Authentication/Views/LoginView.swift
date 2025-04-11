@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 
 struct LoginView: View {
     @StateObject private var viewModel = AuthenticationViewModel()
@@ -74,52 +73,6 @@ struct LoginView: View {
                         title: "Giriş Yap",
                         backgroundColor: .green
                     )
-                }
-                .padding(.horizontal)
-                .disabled(viewModel.isLoading)
-                
-                // --- Sosyal Giriş Ayırıcı --- 
-                Divider()
-                    .padding(.vertical, 8)
-
-                // --- Apple ile Giriş --- 
-                SignInWithAppleButton(
-                    .signIn,
-                    onRequest: { request in
-                        print("Apple Sign In Request Started")
-                    },
-                    onCompletion: { result in
-                        print("Apple Sign In Completed")
-                    }
-                )
-                .signInWithAppleButtonStyle(.whiteOutline)
-                .frame(height: 50)
-                .padding(.horizontal)
-                
-                // --- Google ile Giriş --- 
-                Button {
-                    Task {
-                        await viewModel.signInWithGoogle()
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image("google_logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
-                            
-                        Text("Google ile Giriş Yap")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.white)
-                    .cornerRadius(6)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.black.opacity(0.7), lineWidth: 1)
-                    }
                 }
                 .padding(.horizontal)
                 .disabled(viewModel.isLoading)

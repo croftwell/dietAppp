@@ -1,9 +1,5 @@
 import Foundation
 import FirebaseAuth
-import GoogleSignIn
-import GoogleSignInSwift
-import UIKit
-import FirebaseCore
 import FirebaseFirestore
 
 @MainActor
@@ -58,8 +54,19 @@ class AuthenticationViewModel: ObservableObject {
         do {
             try await authService.signUp(email: email, password: password)
             self.isAuthenticated = true
-        } catch {
-            self.errorMessage = error.localizedDescription
+        } catch let error as NSError {
+            switch error.code {
+            case AuthErrorCode.emailAlreadyInUse.rawValue:
+                self.errorMessage = "Bu email adresi zaten kullanılıyor"
+            case AuthErrorCode.invalidEmail.rawValue:
+                self.errorMessage = "Geçersiz email adresi"
+            case AuthErrorCode.weakPassword.rawValue:
+                self.errorMessage = "Şifre çok zayıf, en az 6 karakter olmalıdır"
+            case AuthErrorCode.networkError.rawValue:
+                self.errorMessage = "İnternet bağlantısı hatası"
+            default:
+                self.errorMessage = "Kayıt olma işlemi başarısız: \(turkceLestir(error: error))"
+            }
         }
         
         self.isLoading = false
@@ -88,8 +95,10 @@ class AuthenticationViewModel: ObservableObject {
                 self.errorMessage = "Bu hesap devre dışı bırakılmış"
             case AuthErrorCode.networkError.rawValue:
                 self.errorMessage = "İnternet bağlantısı hatası"
+            case AuthErrorCode.tooManyRequests.rawValue:
+                self.errorMessage = "Çok fazla giriş denemesi yaptınız. Lütfen daha sonra tekrar deneyin"
             default:
-                self.errorMessage = "Giriş yapılamadı: \(error.localizedDescription)"
+                self.errorMessage = "Giriş yapılamadı: \(turkceLestir(error: error))"
             }
         } catch {
             self.errorMessage = "Beklenmeyen bir hata oluştu"
@@ -104,13 +113,38 @@ class AuthenticationViewModel: ObservableObject {
             return
         }
         
+        // Email formatı kontrolü
+        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+        guard emailPred.evaluate(with: email) else {
+            self.errorMessage = "Lütfen geçerli bir email adresi girin"
+            return
+        }
+        
         self.isLoading = true
         
         do {
+            // Direkt şifre sıfırlama isteği gönder
+            // Firebase, email sistemde kayıtlı değilse bile hata vermez, sadece email göndermez
             try await authService.resetPassword(email: email)
-            self.errorMessage = "Şifre sıfırlama bağlantısı email adresinize gönderildi"
-        } catch {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = "Eğer bu email sistemde kayıtlıysa, şifre sıfırlama bağlantısı gönderilecektir"
+        } catch let error as NSError {
+            switch error.code {
+            case AuthErrorCode.userNotFound.rawValue:
+                self.errorMessage = "Bu email adresi ile kayıtlı hesap bulunamadı"
+            case AuthErrorCode.invalidEmail.rawValue:
+                self.errorMessage = "Geçersiz email adresi"
+            case AuthErrorCode.networkError.rawValue:
+                self.errorMessage = "İnternet bağlantısı hatası"
+            case AuthErrorCode.invalidSender.rawValue:
+                self.errorMessage = "Geçersiz gönderici adresi"
+            case AuthErrorCode.invalidRecipientEmail.rawValue:
+                self.errorMessage = "Geçersiz alıcı email adresi"
+            case AuthErrorCode.missingEmail.rawValue:
+                self.errorMessage = "Email adresi girilmedi"
+            default:
+                self.errorMessage = "Şifre sıfırlama bağlantısı gönderilemedi: \(turkceLestir(error: error))"
+            }
         }
         
         self.isLoading = false
@@ -121,150 +155,46 @@ class AuthenticationViewModel: ObservableObject {
             try authService.signOut()
             self.isAuthenticated = false
         } catch {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = "Çıkış yapılırken bir hata oluştu"
         }
     }
     
-    func signInWithGoogle() async {
-        isLoading = true
-        errorMessage = ""
+    // Firebase hata mesajlarını Türkçeleştiren yardımcı fonksiyon
+    private func turkceLestir(error: NSError) -> String {
+        let errorMsg = error.localizedDescription.lowercased()
         
-        do {
-            guard let clientID = FirebaseApp.app()?.options.clientID else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Firebase yapılandırması bulunamadı"])
-            }
-            
-            let config = GIDConfiguration(clientID: clientID)
-            GIDSignIn.sharedInstance.configuration = config
-            
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = windowScene.windows.first,
-                  let rootViewController = window.rootViewController else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Root view controller bulunamadı"])
-            }
-            
-            // Google Sign-In işlemi
-            let gidSignInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-            let user = gidSignInResult.user
-            
-            guard let idToken = user.idToken?.tokenString else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "ID token alınamadı"])
-            }
-            
-            // Önce kullanıcının email adresini kontrol et
-            let email = user.profile?.email ?? ""
-            let methods = try await Auth.auth().fetchSignInMethods(forEmail: email)
-            
-            if methods.isEmpty {
-                // Kullanıcı daha önce kayıt olmamış
-                errorMessage = "Bu email adresi ile kayıtlı hesap bulunamadı. Lütfen önce kayıt olun."
-                isLoading = false
-                return
-            }
-            
-            // Email kayıtlı, giriş yap
-            let credential = GoogleAuthProvider.credential(
-                withIDToken: idToken,
-                accessToken: user.accessToken.tokenString
-            )
-            
-            // Google ile giriş yap
-            let authResult = try await Auth.auth().signIn(with: credential)
-            let uid = authResult.user.uid
-            
-            // Firestore'da son giriş tarihini güncelle
-            let db = Firestore.firestore()
-            let userRef = db.collection("users").document(uid)
-            
-            try? await userRef.updateData([
-                "lastLoginAt": Timestamp()
-            ])
-            
-            print("Google ile giriş başarılı: \(uid)")
-            isAuthenticated = true
-            
-        } catch let error as NSError {
-            // Google Sign-In veya diğer genel hatalar
-            if error.code == GIDSignInError.canceled.rawValue {
-                errorMessage = "Giriş işlemi iptal edildi"
-            } else {
-                errorMessage = "Google ile giriş yapılırken bir hata oluştu: \(error.localizedDescription)"
-            }
-            isAuthenticated = false
+        if errorMsg.contains("network error") {
+            return "İnternet bağlantısı hatası"
+        } else if errorMsg.contains("wrong password") {
+            return "Hatalı şifre"
+        } else if errorMsg.contains("user not found") {
+            return "Kullanıcı bulunamadı"
+        } else if errorMsg.contains("invalid email") {
+            return "Geçersiz email adresi"
+        } else if errorMsg.contains("email already in use") {
+            return "Bu email adresi zaten kullanılıyor"
+        } else if errorMsg.contains("weak password") {
+            return "Şifre çok zayıf"
+        } else if errorMsg.contains("too many requests") {
+            return "Çok fazla istek gönderildi. Lütfen daha sonra tekrar deneyin"
+        } else if errorMsg.contains("invalid credential") {
+            return "Geçersiz kimlik bilgileri"
+        } else if errorMsg.contains("credential is malformed or has expired") {
+            return "Kimlik bilgileri hatalı veya süresi dolmuş"
+        } else if errorMsg.contains("account exists with different credential") {
+            return "Bu email adresi farklı bir giriş yöntemi ile kullanılıyor"
+        } else if errorMsg.contains("popup closed by user") {
+            return "Giriş işlemi kullanıcı tarafından iptal edildi"
+        } else if errorMsg.contains("requires recent authentication") {
+            return "Bu işlem için yakın zamanda giriş yapılmış olması gerekiyor"
+        } else if errorMsg.contains("app not authorized") {
+            return "Uygulama yetkilendirilmemiş"
+        } else if errorMsg.contains("user disabled") {
+            return "Kullanıcı hesabı devre dışı bırakılmış"
+        } else if errorMsg.contains("user token expired") {
+            return "Oturum süresi dolmuş, lütfen tekrar giriş yapın"
         }
         
-        isLoading = false
-    }
-    
-    // Google ile kayıt ol işlemi
-    func signUpWithGoogle() async {
-        isLoading = true
-        errorMessage = ""
-        
-        do {
-            guard let clientID = FirebaseApp.app()?.options.clientID else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Firebase yapılandırması bulunamadı"])
-            }
-            
-            let config = GIDConfiguration(clientID: clientID)
-            GIDSignIn.sharedInstance.configuration = config
-            
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let window = windowScene.windows.first,
-                  let rootViewController = window.rootViewController else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Root view controller bulunamadı"])
-            }
-            
-            let gidSignInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-            let user = gidSignInResult.user
-            
-            guard let idToken = user.idToken?.tokenString else {
-                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "ID token alınamadı"])
-            }
-            
-            let credential = GoogleAuthProvider.credential(
-                withIDToken: idToken,
-                accessToken: user.accessToken.tokenString
-            )
-            
-            let auth = Auth.auth()
-            
-            do {
-                // Google ile firebase auth'a kayıt ol
-                let authResult = try await auth.signIn(with: credential)
-                
-                // Firestore'a kullanıcı bilgilerini kaydet
-                let db = Firestore.firestore()
-                let uid = authResult.user.uid
-                
-                // Kullanıcı verilerini oluştur
-                let userData: [String: Any] = [
-                    "email": authResult.user.email ?? "",
-                    "displayName": authResult.user.displayName ?? "",
-                    "photoURL": authResult.user.photoURL?.absoluteString ?? "",
-                    "providerId": "google.com",
-                    "createdAt": Timestamp(),
-                    "lastLoginAt": Timestamp()
-                ]
-                
-                // Firestore'a kaydet
-                try await db.collection("users").document(uid).setData(userData)
-                
-                print("Google ile kayıt başarılı: \(uid)")
-                isAuthenticated = true
-                
-            } catch let error as NSError {
-                print("Google ile kayıt hatası: \(error.localizedDescription)")
-                errorMessage = "Google ile kayıt olurken bir hata oluştu: \(error.localizedDescription)"
-            }
-        } catch let error as NSError {
-            if error.code == GIDSignInError.canceled.rawValue {
-                errorMessage = "Kayıt işlemi iptal edildi"
-            } else {
-                errorMessage = "Google ile kayıt olurken bir hata oluştu: \(error.localizedDescription)"
-            }
-        }
-        
-        isLoading = false
+        return "Bir hata oluştu"
     }
 } 
