@@ -102,24 +102,23 @@ struct LoginView: View {
                         await viewModel.signInWithGoogle()
                     }
                 } label: {
-                    HStack {
-                        Image(systemName: "g.circle.fill")
+                    HStack(spacing: 12) {
+                        Image("google_logo")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 20, height: 20)
+                            .frame(width: 24, height: 24)
                             
                         Text("Google ile Giriş Yap")
                             .font(.headline)
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(Color.white)
-                    .cornerRadius(10)
-                    .shadow(color: .gray.opacity(0.3), radius: 2, x: 0, y: 2)
+                    .cornerRadius(6)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.black.opacity(0.7), lineWidth: 1)
                     }
                 }
                 .padding(.horizontal)
@@ -129,13 +128,6 @@ struct LoginView: View {
             }
             .navigationBarBackButtonHidden(true)
             .padding()
-            .alert("Hata", isPresented: .constant(!viewModel.errorMessage.isEmpty)) {
-                Button("Tamam") {
-                    viewModel.errorMessage = ""
-                }
-            } message: {
-                Text(viewModel.errorMessage)
-            }
             .sheet(isPresented: $showResetPassword) {
                 ResetPasswordView()
             }
@@ -145,6 +137,47 @@ struct LoginView: View {
             .navigationDestination(isPresented: $viewModel.isAuthenticated) {
                 ContentView()
                     .environmentObject(viewModel)
+            }
+            .overlay(alignment: .center) {
+                if !viewModel.errorMessage.isEmpty {
+                    ZStack {
+                        // Ekranın tamamını kaplayan yarı saydam gri arka plan
+                        Color.black.opacity(0.5)
+                            .ignoresSafeArea()
+                        
+                        // Alert içeriği
+                        VStack {
+                            Text("Hata")
+                                .foregroundColor(.green)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .padding(.bottom, 8)
+                            
+                            Text(viewModel.errorMessage)
+                                .font(.body)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            
+                            Button {
+                                viewModel.errorMessage = ""
+                            } label: {
+                                Text("Tamam")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(width: 120, height: 44)
+                                    .background(Color.green)
+                                    .cornerRadius(6)
+                            }
+                            .padding(.top, 20)
+                        }
+                        .padding(24)
+                        .frame(width: UIScreen.main.bounds.width * 0.85)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 4)
+                    }
+                }
             }
         }
     }

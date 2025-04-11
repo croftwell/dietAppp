@@ -4,6 +4,7 @@ import GoogleSignIn
 import GoogleSignInSwift
 import UIKit
 import FirebaseCore
+import FirebaseFirestore
 
 @MainActor
 class AuthenticationViewModel: ObservableObject {
@@ -16,15 +17,25 @@ class AuthenticationViewModel: ObservableObject {
     
     private let authService: AuthenticationServiceProtocol
     
+    // Auth state listener handle
+    private var authStateHandle: AuthStateDidChangeListenerHandle?
+    
     init(authService: AuthenticationServiceProtocol = AuthenticationService()) {
         self.authService = authService
         // Uygulama başladığında kullanıcı durumunu kontrol et
         checkAuthState()
     }
     
+    deinit {
+        // Listener'ı kaldır
+        if let handle = authStateHandle {
+            Auth.auth().removeStateDidChangeListener(handle)
+        }
+    }
+    
     private func checkAuthState() {
         // Firebase'in otomatik giriş durumunu kontrol et
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             DispatchQueue.main.async {
                 self?.isAuthenticated = user != nil
             }
@@ -117,47 +128,31 @@ class AuthenticationViewModel: ObservableObject {
     func signInWithGoogle() async {
         isLoading = true
         errorMessage = ""
-
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first,
-              let rootViewController = window.rootViewController else {
-            errorMessage = "Aktif pencere bulunamadı."
-            isLoading = false
-            print("Hata: Aktif pencere bulunamadı.")
-            return
-        }
-        print("Aktif pencere bulundu.")
-
-        guard let clientID = FirebaseApp.app()?.options.clientID else {
-            errorMessage = "Firebase Client ID bulunamadı."
-            isLoading = false
-            print("Hata: Firebase Client ID bulunamadı.")
-            return
-        }
-        print("Firebase Client ID alındı: \(clientID)")
-
-        let config = GIDConfiguration(clientID: clientID)
-        GIDSignIn.sharedInstance.configuration = config
-        print("GIDConfiguration oluşturuldu.")
-
+        
         do {
-            print("GIDSignIn.sharedInstance.signIn çağrılıyor...")
-            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-            print("Google Sign-In başarılı, sonuç alındı.")
-
-            guard let idToken = result.user.idToken?.tokenString else {
-                print("Hata: Google ID Token alınamadı.")
-                throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "Google ID Token alınamadı."])
+            guard let clientID = FirebaseApp.app()?.options.clientID else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Firebase yapılandırması bulunamadı"])
             }
-            let accessToken = result.user.accessToken.tokenString
-            print("ID Token ve Access Token alındı.")
-
-            let credential = GoogleAuthProvider.credential(withIDToken: idToken,
-                                                           accessToken: accessToken)
-            print("Firebase Google credential oluşturuldu.")
-
+            
+            let config = GIDConfiguration(clientID: clientID)
+            GIDSignIn.sharedInstance.configuration = config
+            
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first,
+                  let rootViewController = window.rootViewController else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Root view controller bulunamadı"])
+            }
+            
+            // Google Sign-In işlemi
+            let gidSignInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = gidSignInResult.user
+            
+            guard let idToken = user.idToken?.tokenString else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "ID token alınamadı"])
+            }
+            
             // Önce kullanıcının email adresini kontrol et
-            let email = result.user.profile?.email ?? ""
+            let email = user.profile?.email ?? ""
             let methods = try await Auth.auth().fetchSignInMethods(forEmail: email)
             
             if methods.isEmpty {
@@ -166,30 +161,110 @@ class AuthenticationViewModel: ObservableObject {
                 isLoading = false
                 return
             }
-
-            print("Auth.auth().signIn çağrılıyor...")
+            
+            // Email kayıtlı, giriş yap
+            let credential = GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: user.accessToken.tokenString
+            )
+            
+            // Google ile giriş yap
             let authResult = try await Auth.auth().signIn(with: credential)
-            print("Firebase Google ile giriş başarılı! User: \(authResult.user.uid)")
-
-            await MainActor.run {
-                self.isAuthenticated = true
-                self.isLoading = false
-                print("ViewModel durumu güncellendi: isAuthenticated = true, isLoading = false")
+            let uid = authResult.user.uid
+            
+            // Firestore'da son giriş tarihini güncelle
+            let db = Firestore.firestore()
+            let userRef = db.collection("users").document(uid)
+            
+            try? await userRef.updateData([
+                "lastLoginAt": Timestamp()
+            ])
+            
+            print("Google ile giriş başarılı: \(uid)")
+            isAuthenticated = true
+            
+        } catch let error as NSError {
+            // Google Sign-In veya diğer genel hatalar
+            if error.code == GIDSignInError.canceled.rawValue {
+                errorMessage = "Giriş işlemi iptal edildi"
+            } else {
+                errorMessage = "Google ile giriş yapılırken bir hata oluştu: \(error.localizedDescription)"
             }
-
+            isAuthenticated = false
+        }
+        
+        isLoading = false
+    }
+    
+    // Google ile kayıt ol işlemi
+    func signUpWithGoogle() async {
+        isLoading = true
+        errorMessage = ""
+        
+        do {
+            guard let clientID = FirebaseApp.app()?.options.clientID else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Firebase yapılandırması bulunamadı"])
+            }
+            
+            let config = GIDConfiguration(clientID: clientID)
+            GIDSignIn.sharedInstance.configuration = config
+            
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first,
+                  let rootViewController = window.rootViewController else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Root view controller bulunamadı"])
+            }
+            
+            let gidSignInResult = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = gidSignInResult.user
+            
+            guard let idToken = user.idToken?.tokenString else {
+                throw NSError(domain: "GoogleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "ID token alınamadı"])
+            }
+            
+            let credential = GoogleAuthProvider.credential(
+                withIDToken: idToken,
+                accessToken: user.accessToken.tokenString
+            )
+            
+            let auth = Auth.auth()
+            
+            do {
+                // Google ile firebase auth'a kayıt ol
+                let authResult = try await auth.signIn(with: credential)
+                
+                // Firestore'a kullanıcı bilgilerini kaydet
+                let db = Firestore.firestore()
+                let uid = authResult.user.uid
+                
+                // Kullanıcı verilerini oluştur
+                let userData: [String: Any] = [
+                    "email": authResult.user.email ?? "",
+                    "displayName": authResult.user.displayName ?? "",
+                    "photoURL": authResult.user.photoURL?.absoluteString ?? "",
+                    "providerId": "google.com",
+                    "createdAt": Timestamp(),
+                    "lastLoginAt": Timestamp()
+                ]
+                
+                // Firestore'a kaydet
+                try await db.collection("users").document(uid).setData(userData)
+                
+                print("Google ile kayıt başarılı: \(uid)")
+                isAuthenticated = true
+                
+            } catch let error as NSError {
+                print("Google ile kayıt hatası: \(error.localizedDescription)")
+                errorMessage = "Google ile kayıt olurken bir hata oluştu: \(error.localizedDescription)"
+            }
         } catch let error as NSError {
             if error.code == GIDSignInError.canceled.rawValue {
-                 print("Google ile giriş kullanıcı tarafından iptal edildi.")
-                 errorMessage = "Giriş iptal edildi."
+                errorMessage = "Kayıt işlemi iptal edildi"
             } else {
-                 print("Google ile giriş hatası: \(error.localizedDescription), Kod: \(error.code)")
-                 errorMessage = "Google ile giriş yapılamadı: \(error.localizedDescription)"
+                errorMessage = "Google ile kayıt olurken bir hata oluştu: \(error.localizedDescription)"
             }
-            isLoading = false
-        } catch {
-            print("Beklenmedik Google ile giriş hatası: \(error.localizedDescription)")
-            errorMessage = "Bir hata oluştu: \(error.localizedDescription)"
-            isLoading = false
         }
+        
+        isLoading = false
     }
 } 
