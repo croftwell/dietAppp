@@ -104,7 +104,7 @@ struct OnboardingView: View {
                     
                     // Kayıt Ol butonu -> NavigationLink
                     NavigationLink {
-                        RegisterView()
+                        ProfileSetupView()
                     } label: {
                         CustomButton( // CustomButton kullanımını varsayıyoruz
                             title: "Kayıt Ol",
